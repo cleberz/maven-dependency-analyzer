@@ -32,10 +32,22 @@ import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
+
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 /**
  * @author <a href="mailto:markhobson@gmail.com">Mark Hobson</a>
@@ -200,6 +212,41 @@ public class DefaultProjectDependencyAnalyzer
         String testOutputDirectory = project.getBuild().getTestOutputDirectory();
         dependencyClasses.addAll( buildDependencyClasses( testOutputDirectory ) );
 
+        if ( "war".equals( project.getPackaging() ) )
+        {
+            File webXml = new File( project.getBuild().getDirectory() 
+                                    + File.separator 
+                                    + project.getArtifactId() 
+                                    + File.separator 
+                                    + "WEB-INF" 
+                                    + File.separator 
+                                    + "web.xml" );
+            if ( webXml.exists() )
+            {
+                //inspect for classes declared in web.xml
+                DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                try
+                {
+                    //TODO: figure out what happens when the web.xml namespace is used and the best way to support versions.
+                    DocumentBuilder builder = factory.newDocumentBuilder();
+                    Document webXmlDocument = builder.parse( webXml );
+                    XPathFactory xPathfactory = XPathFactory.newInstance();
+                    XPath xpath = xPathfactory.newXPath();
+                    XPathExpression expr = xpath.compile( "/web-app/servlet[*]/servlet-class/text()" );
+                    NodeList nodes = (NodeList) expr.evaluate( webXmlDocument, XPathConstants.NODESET );
+                    for ( int i = 0; i < nodes.getLength(); i++ )
+                    {
+                        dependencyClasses.add( nodes.item( i ).getNodeValue() );
+                    }
+                }
+                catch ( ParserConfigurationException | SAXException | XPathExpressionException e )
+                {
+                    //TODO: figure out how to log from here.
+                    e.printStackTrace();
+                }
+            }
+        }
+        
         return dependencyClasses;
     }
 

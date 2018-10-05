@@ -327,6 +327,25 @@ public class DefaultProjectDependencyAnalyzerTest
 
         assertEquals( expectedAnalysis, actualAnalysis );
     }
+    
+    public void testWarWithServletFilterDependency()
+            throws TestToolsException, ProjectDependencyAnalyzerException
+        {
+            compileProject( "warWithServletFilterDependency/pom.xml" );
+
+            MavenProject project = getProject( "warWithServletFilterDependency/pom.xml" );
+
+            ProjectDependencyAnalysis actualAnalysis = analyzer.analyze( project );
+
+            Artifact jerseyServlet = createArtifact( "com.sun.jersey", "jersey-servlet", "jar", "1.17.1", "compile" );
+            Set<Artifact> usedDeclaredArtifacts = Collections.singleton( jerseyServlet );
+
+            ProjectDependencyAnalysis expectedAnalysis = new ProjectDependencyAnalysis( usedDeclaredArtifacts, null, null );
+
+            // MSHARED-47: usedUndeclaredArtifacts=[xml-apis:xml-apis:jar:1.0.b2:compile]
+            assertEquals( expectedAnalysis, actualAnalysis );
+        }
+
 
     // private methods --------------------------------------------------------
 
